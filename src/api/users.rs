@@ -27,7 +27,7 @@ pub fn route() -> Router<Arc<AppState>> {
 }
 
 pub async fn list_users(State(state): State<Arc<AppState>>, token: AuthToken) -> impl IntoResponse {
-    let Some(_current_user) = token.authorize(&state, UserPermission::USER_ADMIN) else {
+    let Ok(Some(_current_user)) = token.authorize(&state, UserPermission::USER_ADMIN) else {
         return AuthToken::failure_response();
     };
 
@@ -41,7 +41,7 @@ pub async fn get_user(
     Path(user_id): Path<Uuid>,
     token: AuthToken,
 ) -> impl IntoResponse {
-    let Some(_current_user) = token.authorize(&state, UserPermission::USER_ADMIN) else {
+    let Ok(Some(_current_user)) = token.authorize(&state, UserPermission::USER_ADMIN) else {
         return AuthToken::failure_response();
     };
 
@@ -58,7 +58,7 @@ pub async fn create_user(
     token: AuthToken,
     Json(request): Json<User>,
 ) -> impl IntoResponse {
-    let Some(current_user) = token.authorize(&state, UserPermission::USER_ADMIN) else {
+    let Ok(Some(current_user)) = token.authorize(&state, UserPermission::USER_ADMIN) else {
         return AuthToken::failure_response();
     };
 
@@ -88,7 +88,7 @@ pub async fn update_user(
     token: AuthToken,
     Json(request): Json<User>,
 ) -> impl IntoResponse {
-    let Some(current_user) = token.authorize(&state, UserPermission::USER_ADMIN) else {
+    let Ok(Some(current_user)) = token.authorize(&state, UserPermission::USER_ADMIN) else {
         return AuthToken::failure_response();
     };
 
@@ -120,7 +120,7 @@ pub async fn delete_user(
     Path(user_id): Path<Uuid>,
     token: AuthToken,
 ) -> impl IntoResponse {
-    let Some(current_user) = token.authorize(&state, UserPermission::USER_ADMIN) else {
+    let Ok(Some(current_user)) = token.authorize(&state, UserPermission::USER_ADMIN) else {
         return AuthToken::failure_response();
     };
 
@@ -146,7 +146,7 @@ pub async fn invalidate_sessions(
     Path(user_id): Path<Uuid>,
     token: AuthToken,
 ) -> impl IntoResponse {
-    let Some(current_user) = token.authorize(&state, UserPermission::USER_ADMIN) else {
+    let Ok(Some(current_user)) = token.authorize(&state, UserPermission::USER_ADMIN) else {
         return AuthToken::failure_response();
     };
 
@@ -169,7 +169,7 @@ pub async fn change_password(
     token: AuthToken,
     Json(request): Json<String>,
 ) -> impl IntoResponse {
-    let Some(current_user) = token.authorize(&state, UserPermission::ANY) else {
+    let Ok(Some(current_user)) = token.authorize(&state, UserPermission::ANY) else {
         return AuthToken::failure_response();
     };
 
@@ -182,7 +182,7 @@ pub async fn change_password(
 
     let result = state
         .users_service
-        .change_password(user_id, &request, Some(&token.token));
+        .change_password(user_id, &request, token.token());
 
     state.audit_service.log_data(
         Some(current_user.id),

@@ -1,4 +1,8 @@
-use crate::{database::users::DbUser, AppState};
+use crate::{
+    database::users::{DbUser, UserPermission},
+    services::auth::AuthError,
+    AppState,
+};
 use axum::{
     async_trait,
     extract::FromRequestParts,
@@ -14,26 +18,40 @@ use axum_extra::{
 /// Auth token extractor
 pub struct AuthToken {
     /// API token
-    pub token: String,
+    token: Option<String>,
 }
 
 impl AuthToken {
     /// Gets the API token
-    pub fn token(&self) -> &str {
-        self.token.as_str()
+    pub fn token(&self) -> Option<&str> {
+        self.token.as_deref()
     }
 
     /// Helper method to authorize and get the user for the extracted token.
     /// Returns None if authorization failed.
-    pub fn authorize(&self, state: &AppState, allowed_permissions: i64) -> Option<DbUser> {
-        state
-            .auth_service
-            .authorize(&self.token, allowed_permissions)
+    pub fn authorize(
+        &self,
+        state: &AppState,
+        allowed_permissions: i64,
+    ) -> Result<Option<DbUser>, AuthError> {
+        if let Some(token) = &self.token {
+            if let Some(user) = state.auth_service.authorize(token, allowed_permissions) {
+                Ok(Some(user))
+            } else {
+                Err(AuthError::Generic)
+            }
+        } else if allowed_permissions == UserPermission::ANY {
+            Ok(None)
+        } else {
+            Err(AuthError::NoToken)
+        }
     }
 
     /// Helper method to invalidate the extracted API token
     pub fn logout(&self, state: &AppState) {
-        state.auth_service.logout(&self.token)
+        if let Some(token) = &self.token {
+            state.auth_service.logout(token)
+        }
     }
 
     pub fn failure_response() -> Response {
@@ -55,12 +73,10 @@ where
 
         if let Ok(TypedHeader(Authorization(bearer))) = auth_result {
             Ok(Self {
-                token: String::from(bearer.token()),
+                token: Some(String::from(bearer.token())),
             })
         } else {
-            let mut headers = HeaderMap::new();
-            headers.insert("WWW-Authenticate", "Bearer".parse().unwrap());
-            Err((StatusCode::UNAUTHORIZED, headers))
+            Ok(Self { token: None })
         }
     }
 }

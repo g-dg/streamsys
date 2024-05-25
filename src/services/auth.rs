@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{error::Error, fmt::Display, time::Duration};
 
 use argon2::{password_hash::SaltString, Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use chrono::{TimeDelta, Utc};
@@ -21,6 +21,27 @@ use crate::{
 use super::{audit::AuditService, users::UsersService};
 
 const SESSION_RENEW_MIN_AGE: i64 = 60;
+
+#[derive(Debug)]
+pub enum AuthError {
+    Generic,
+    NoToken,
+}
+
+impl Error for AuthError {}
+
+impl Display for AuthError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                AuthError::Generic => "Unknown Error",
+                AuthError::NoToken => "Missing Authorization Token",
+            }
+        )
+    }
+}
 
 pub struct AuthService {
     config: AppConfig,

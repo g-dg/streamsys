@@ -62,7 +62,7 @@ pub async fn get_current_user(
     State(state): State<Arc<AppState>>,
     token: AuthToken,
 ) -> impl IntoResponse {
-    let Some(current_user) = token.authorize(&state, UserPermission::ANY) else {
+    let Ok(Some(current_user)) = token.authorize(&state, UserPermission::ANY) else {
         return AuthToken::failure_response();
     };
 
