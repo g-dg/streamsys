@@ -116,7 +116,7 @@ impl Database {
         if full {
             let mut stmt = conn.prepare("PRAGMA wal_checkpoint(RESTART);").unwrap();
             while stmt
-                .query_row([], |row| row.get::<usize, i32>(0))
+                .query_row([], |row| row.get::<_, i32>(0))
                 .expect("Error occurred while checkpointing database")
                 == 1
             {
@@ -161,7 +161,7 @@ impl Database {
         if conn
             .prepare("PRAGMA integrity_check(1);")
             .unwrap()
-            .query_row([], |row| Ok(row.get::<usize, String>(0)))
+            .query_row([], |row| Ok(row.get::<_, String>(0)))
             .expect("Error occurred while checking database integrity")
             .unwrap()
             != *"ok"
@@ -172,7 +172,7 @@ impl Database {
         if conn
             .prepare("PRAGMA foreign_key_check;")
             .unwrap()
-            .query_map([], |row| Ok(row.get::<usize, String>(0)))
+            .query_map([], |row| Ok(row.get::<_, String>(0)))
             .expect("Error occurred while checking database foreign key integrity")
             .count()
             > 0
