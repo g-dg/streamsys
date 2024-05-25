@@ -1,0 +1,45 @@
+{
+	// Use IntelliSense to learn about possible attributes.
+	// Hover to view descriptions of existing attributes.
+	// For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"type": "lldb",
+			"request": "launch",
+			"name": "Debug executable 'garnetdg_streamsys'",
+			"cargo": {
+				"args": [
+					"build",
+					"--bin=garnetdg_streamsys",
+					"--package=garnetdg_streamsys"
+				],
+				"filter": {
+					"name": "garnetdg_streamsys",
+					"kind": "bin"
+				}
+			},
+			"args": [],
+			"cwd": "${workspaceFolder}"
+		},
+		{
+			"type": "lldb",
+			"request": "launch",
+			"name": "Debug unit tests in executable 'garnetdg_streamsys'",
+			"cargo": {
+				"args": [
+					"test",
+					"--no-run",
+					"--bin=garnetdg_streamsys",
+					"--package=garnetdg_streamsys"
+				],
+				"filter": {
+					"name": "garnetdg_streamsys",
+					"kind": "bin"
+				}
+			},
+			"args": [],
+			"cwd": "${workspaceFolder}"
+		}
+	]
+}
