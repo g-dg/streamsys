@@ -13,9 +13,9 @@ use futures::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
-use crate::{
-    app::AppState, database::users::UserPermission, services::display_state::DisplayState,
-};
+use crate::{app::AppState, auth::db::UserPermission};
+
+use super::service::DisplayState;
 
 pub fn route() -> Router<Arc<AppState>> {
     Router::new().route("/", get(handler))

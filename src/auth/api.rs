@@ -9,10 +9,9 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    app::AppState, database::users::UserPermission, helpers::auth_extractor::AuthToken,
-    services::users::User,
-};
+use crate::{app::AppState, users::service::User};
+
+use super::{db::UserPermission, extractor::AuthToken};
 
 pub fn route() -> Router<Arc<AppState>> {
     Router::new()

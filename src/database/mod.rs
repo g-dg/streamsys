@@ -5,7 +5,6 @@ pub mod slide_decks;
 pub mod slide_groups;
 pub mod slide_types;
 pub mod slides;
-pub mod users;
 
 use std::{thread, time::Duration};
 
@@ -14,14 +13,11 @@ use r2d2_sqlite::SqliteConnectionManager;
 use serde_json::json;
 
 use crate::{
-    config::AppConfig,
-    services::{
-        audit::AuditService,
-        users::{User, UsersService},
-    },
+    audit::AuditService,
+    auth::db::UserPermission,
+    config::file::AppConfig,
+    users::service::{User, UsersService},
 };
-
-use self::users::UserPermission;
 
 const DATABASE_DEFINITION_SQL: &str = include_str!("../../database.sql");
 

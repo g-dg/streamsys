@@ -11,9 +11,11 @@ use serde_json::json;
 use uuid::Uuid;
 
 use crate::{
-    app::AppState, database::users::UserPermission, helpers::auth_extractor::AuthToken,
-    services::users::User,
+    app::AppState,
+    auth::{db::UserPermission, extractor::AuthToken},
 };
+
+use super::service::User;
 
 pub fn route() -> Router<Arc<AppState>> {
     Router::new()

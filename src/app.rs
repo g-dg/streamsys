@@ -21,11 +21,12 @@ use tower_http::{
 
 use crate::{
     api,
-    config::AppConfig,
+    audit::AuditService,
+    auth::service::AuthService,
+    config::{file::AppConfig, service::ConfigService},
     database::Database,
-    services::{
-        audit::AuditService, auth::AuthService, config::ConfigService, display_state::DisplayStateService, users::UsersService
-    },
+    display_state::service::DisplayStateService,
+    users::service::UsersService,
 };
 
 pub struct AppState {

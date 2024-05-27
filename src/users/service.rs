@@ -3,12 +3,11 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{
-    config::AppConfig,
-    database::{users::DbUser, Database},
+    auth::{db::DbUser, service::AuthService},
+    config::file::AppConfig,
+    database::Database,
     helpers::errors::GenericError,
 };
-
-use super::auth::AuthService;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct User {

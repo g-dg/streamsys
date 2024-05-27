@@ -1,8 +1,4 @@
-use crate::{
-    app::AppState,
-    database::users::{DbUser, UserPermission},
-    services::auth::AuthError,
-};
+use crate::app::AppState;
 use axum::{
     async_trait,
     extract::FromRequestParts,
@@ -13,6 +9,11 @@ use axum::{
 use axum_extra::{
     headers::{authorization::Bearer, Authorization},
     TypedHeader,
+};
+
+use super::{
+    db::{DbUser, UserPermission},
+    service::AuthError,
 };
 
 /// Auth token extractor
