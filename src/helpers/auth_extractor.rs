@@ -1,7 +1,7 @@
 use crate::{
+    app::AppState,
     database::users::{DbUser, UserPermission},
     services::auth::AuthError,
-    AppState,
 };
 use axum::{
     async_trait,

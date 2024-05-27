@@ -24,10 +24,20 @@ use crate::{
     config::AppConfig,
     database::Database,
     services::{
-        audit::AuditService, auth::AuthService, config::ConfigService, users::UsersService,
+        audit::AuditService, auth::AuthService, config::ConfigService, display_state::DisplayStateService, users::UsersService
     },
-    AppState,
 };
+
+pub struct AppState {
+    pub config: AppConfig,
+    pub database: Database,
+    pub shutdown_token: CancellationToken,
+    pub config_service: ConfigService,
+    pub audit_service: AuditService,
+    pub auth_service: AuthService,
+    pub users_service: UsersService,
+    pub display_state_service: DisplayStateService,
+}
 
 pub struct App {
     pub state: Arc<AppState>,
@@ -49,6 +59,7 @@ impl App {
             audit_service: AuditService::new(&database),
             auth_service: AuthService::new(&database, config),
             users_service: UsersService::new(&database, config),
+            display_state_service: DisplayStateService::new(),
             database,
         });
 

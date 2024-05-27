@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::Duration};
 
-use crate::AppState;
+use crate::app::AppState;
 
 /// Runs various maintenance tasks
 pub async fn maintenance_tasks(app_state: Arc<AppState>) {

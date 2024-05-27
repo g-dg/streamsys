@@ -5,7 +5,7 @@ use axum::{
     Router,
 };
 
-use crate::AppState;
+use crate::app::AppState;
 
 pub fn route() -> Router<Arc<AppState>> {
     Router::new()

@@ -11,23 +11,9 @@ use tokio::signal;
 use tokio_util::sync::CancellationToken;
 
 use config::AppConfig;
-use database::Database;
-use services::{
-    audit::AuditService, auth::AuthService, config::ConfigService, users::UsersService,
-};
 use tasks::maintenance;
 
 const CONFIG_FILE: &str = "./config.json";
-
-pub struct AppState {
-    pub config: AppConfig,
-    pub database: Database,
-    pub shutdown_token: CancellationToken,
-    pub config_service: ConfigService,
-    pub audit_service: AuditService,
-    pub auth_service: AuthService,
-    pub users_service: UsersService,
-}
 
 #[tokio::main]
 pub async fn main() {
