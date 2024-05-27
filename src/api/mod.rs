@@ -1,4 +1,5 @@
 pub mod auth;
+pub mod display_state;
 pub mod server_info;
 pub mod users;
 
@@ -13,4 +14,5 @@ pub fn route() -> Router<Arc<AppState>> {
         .nest("/server-info", server_info::route())
         .nest("/auth", auth::route())
         .nest("/users", users::route())
+        .nest("/display-state", display_state::route())
 }
