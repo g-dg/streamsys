@@ -20,6 +20,7 @@ use crate::{
 
 use super::{audit::AuditService, users::UsersService};
 
+const SESSION_TOKEN_LENGTH: usize = 255;
 const SESSION_RENEW_MIN_AGE: i64 = 60;
 
 #[derive(Debug)]
@@ -103,7 +104,7 @@ impl AuthService {
         }
 
         // create session id
-        let token = Alphanumeric.sample_string(&mut OsRng, 255);
+        let token = Alphanumeric.sample_string(&mut OsRng, SESSION_TOKEN_LENGTH);
 
         // insert session into database
         db
