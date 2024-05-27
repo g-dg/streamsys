@@ -51,6 +51,12 @@ const router = createRouter({
       props: false,
       component: () => import("@/components/users/UserEdit.vue"),
     },
+    {
+      name: "display",
+      path: "/display/:displayName",
+      props: true,
+      component: () => import("@/views/DisplayView.vue"),
+    },
   ],
 });
 
