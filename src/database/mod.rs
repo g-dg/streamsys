@@ -1,4 +1,10 @@
+pub mod display_outputs;
 pub mod migrations;
+pub mod slide_deck_sections;
+pub mod slide_decks;
+pub mod slide_groups;
+pub mod slide_types;
+pub mod slides;
 pub mod users;
 
 use std::{thread, time::Duration};
