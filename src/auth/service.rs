@@ -11,10 +11,13 @@ use serde_json::json;
 use uuid::Uuid;
 
 use crate::{
-    audit::AuditService, config::file::AppConfig, database::Database, users::service::UsersService,
+    audit::AuditService,
+    config::file::AppConfig,
+    database::Database,
+    users::{db::DbUser, service::UsersService},
 };
 
-use super::db::{DbSession, DbUser};
+use super::db::DbSession;
 
 const SESSION_TOKEN_LENGTH: usize = 255;
 const SESSION_RENEW_MIN_AGE: i64 = 60;

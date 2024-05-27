@@ -84,6 +84,13 @@ CREATE TABLE "slide_decks" (
     "id" BLOB PRIMARY KEY NOT NULL DEFAULT (randomblob(16)),
     "name" TEXT NOT NULL UNIQUE
 );
+CREATE TABLE "slide_deck_content_overrides" (
+    "id" BLOB PRIMARY KEY NOT NULL DEFAULT (randomblob(16)),
+    "slide_deck_id" BLOB NOT NULL REFERENCES "slide_decks" ("id") ON UPDATE CASCADE ON DELETE CASCADE,
+    "key" TEXT NOT NULL,
+    "content" TEXT,
+    UNIQUE("slide_deck_id", "key") ON CONFLICT REPLACE
+);
 
 CREATE TABLE "slide_deck_sections" (
     "id" BLOB PRIMARY KEY NOT NULL DEFAULT (randomblob(16)),
@@ -106,6 +113,8 @@ CREATE TABLE "slide_deck_section_content_overrides" (
 CREATE TABLE "slide_deck_slides" (
     "id" BLOB PRIMARY KEY NOT NULL DEFAULT (randomblob(16)),
     "slide_deck_section_id" BLOB NOT NULL REFERENCES "slide_deck_sections" ("id") ON UPDATE CASCADE ON DELETE CASCADE,
+    "name_override" TEXT,
+    "order" INTEGER NOT NULL DEFAULT 0,
     "slide_id" BLOB REFERENCES "slides" ("id") ON UPDATE CASCADE ON DELETE SET NULL,
     "slide_type_override_id" BLOB REFERENCES "slide_types" ("id") ON UPDATE CASCADE ON DELETE SET NULL
 );

@@ -1,4 +1,4 @@
-use crate::app::AppState;
+use crate::{app::AppState, users::db::DbUser};
 use axum::{
     async_trait,
     extract::FromRequestParts,
@@ -11,10 +11,7 @@ use axum_extra::{
     TypedHeader,
 };
 
-use super::{
-    db::{DbUser, UserPermission},
-    service::AuthError,
-};
+use super::{db::UserPermission, service::AuthError};
 
 /// Auth token extractor
 pub struct AuthToken {

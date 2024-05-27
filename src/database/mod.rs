@@ -1,6 +1,8 @@
 pub mod display_outputs;
 pub mod migrations;
+pub mod slide_content;
 pub mod slide_deck_sections;
+pub mod slide_deck_slides;
 pub mod slide_decks;
 pub mod slide_groups;
 pub mod slide_types;

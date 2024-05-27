@@ -3,13 +3,13 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use tokio::sync::watch::{self};
 
-use crate::database::slide_types::SlideType;
+use crate::database::slide_types::DbSlideType;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct DisplayState {
     pub id: String,
     pub content: HashMap<String, String>,
-    pub slide_type: Option<SlideType>,
+    pub slide_type: Option<DbSlideType>,
 }
 
 impl DisplayState {
