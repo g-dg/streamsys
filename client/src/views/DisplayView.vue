@@ -1,25 +1,27 @@
 <script lang="ts" setup>
 import { DisplayStateConnection } from "@/api/displayState";
-import { onMounted, watch } from "vue";
+import { useDisplayStateStore } from "@/stores/displayState";
+import { computed, onMounted, watch } from "vue";
 
 const props = defineProps({
   displayName: { type: String, required: true },
 });
 
-let displayStateConnection: DisplayStateConnection | null;
+const displayStateStore = useDisplayStateStore();
+
 async function connectDisplayState() {
-  displayStateConnection = await DisplayStateConnection.connect();
+  await displayStateStore.connect();
 }
 onMounted(connectDisplayState);
 </script>
 
 <template>
   <div>
-  {{ displayName }}
-  <br />
-  <code>
-    <pre>{{ displayStateConnection?.currentState.value }}</pre>
-  </code>
+    {{ displayName }}
+    <br />
+    <code>
+      <pre>{{ displayStateStore.currentState }}</pre>
+    </code>
   </div>
 </template>
 
