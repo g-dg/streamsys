@@ -2,14 +2,13 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 use tokio::sync::watch::{self};
-
-use crate::database::slide_types::DbSlideType;
+use uuid::Uuid;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct DisplayState {
     pub id: String,
     pub content: HashMap<String, String>,
-    pub slide_type: Option<DbSlideType>,
+    pub slide_type_id: Option<Uuid>,
 }
 
 impl DisplayState {
@@ -17,7 +16,7 @@ impl DisplayState {
         Self {
             id: String::default(),
             content: HashMap::new(),
-            slide_type: None,
+            slide_type_id: None,
         }
     }
 }
