@@ -27,7 +27,7 @@ export const useDisplayStateStore = defineStore("displayState", () => {
   let _errorListener: ((evt: Event) => void) | null = null;
 
   let _isConnected: boolean = false;
-  let _isClosing: boolean = false;
+  let _stopRetries: boolean = false;
 
   async function _connectWs() {
     // connect to websocket
@@ -59,13 +59,16 @@ export const useDisplayStateStore = defineStore("displayState", () => {
     });
   }
 
-  async function connect() {
+  /**
+   * Connects (or reconnects) to the display state websocket
+   */
+  async function connect(): Promise<void> {
     // disconnect (if connected)
     disconnect();
-    _isClosing = false;
+    _stopRetries = false;
 
     // connect
-    while (_ws == null && !_isClosing) {
+    while (_ws == null && !_stopRetries) {
       try {
         await _connectWs();
       } catch (e) {
@@ -78,7 +81,7 @@ export const useDisplayStateStore = defineStore("displayState", () => {
       }
     }
 
-    if (_isClosing) {
+    if (_stopRetries) {
       return;
     }
 
@@ -105,10 +108,11 @@ export const useDisplayStateStore = defineStore("displayState", () => {
     // set up close listener
     _closeListener = async (evt: CloseEvent) => {
       disconnect();
+      _stopRetries = false;
 
       // reconnect if not closing
       await sleep(RECONNECT_DELAY);
-      if (!_isClosing) {
+      if (!_stopRetries) {
         await connect();
       }
     };
@@ -118,10 +122,11 @@ export const useDisplayStateStore = defineStore("displayState", () => {
     _errorListener = async (evt: Event) => {
       console.error("Error occurred on display state websocket", evt);
       disconnect();
+      _stopRetries = false;
 
       // reconnect if not closing
       await sleep(RECONNECT_DELAY);
-      if (!_isClosing) {
+      if (!_stopRetries) {
         await connect();
       }
     };
@@ -139,8 +144,11 @@ export const useDisplayStateStore = defineStore("displayState", () => {
     await initialLoadPromise;
   }
 
+  /**
+   * Disconnects from the display state websocket
+   */
   function disconnect(): void {
-    _isClosing = true;
+    _stopRetries = true;
     _isConnected = false;
 
     _ws?.removeEventListener("message", _messageListener!);
@@ -150,22 +158,56 @@ export const useDisplayStateStore = defineStore("displayState", () => {
     _ws = null;
   }
 
+  /**
+   * Whether the websocket is connected
+   */
   const connected: ComputedRef<boolean> = computed(() => _isConnected);
 
+  /**
+   * The current display state
+   */
   const currentState: ComputedRef<DisplayState> = computed(
     () => _currentState.value
   );
 
+  /**
+   * Sends the user's session token to the display state websocket
+   */
   async function authenticate(): Promise<void> {
     const authStore = useAuthStore();
 
     const request = {
-      auth_token: authStore.token,
+      auth_token: authStore.token ?? "",
     };
 
+    const authPromise = new Promise<void>((resolve) => {
+      const authListener = (evt: MessageEvent<any>) => {
+        try {
+          const response = JSON.parse(evt.data);
+
+          if (response.auth != undefined) {
+            resolve(response.auth);
+          }
+        } catch (e) {
+          console.error(
+            "Error parsing response from display state websocket",
+            e
+          );
+        }
+        _ws!.removeEventListener("message", authListener);
+      };
+      _ws!.addEventListener("message", authListener);
+    });
+
     _ws?.send(JSON.stringify(request));
+
+    return await authPromise;
   }
 
+  /**
+   * Sets a new state for the display
+   * @param state State to set
+   */
   function setState(state: DisplayState): void {
     const authStore = useAuthStore();
 
@@ -176,6 +218,9 @@ export const useDisplayStateStore = defineStore("displayState", () => {
     _ws?.send(JSON.stringify(request));
   }
 
+  /**
+   * Requests a refresh of the display state
+   */
   function refresh(): void {
     _ws?.send(JSON.stringify({ get: true }));
   }
