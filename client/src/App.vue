@@ -3,18 +3,25 @@ import { RouterLink, RouterView } from "vue-router";
 import { useAuthStore } from "./stores/auth";
 import { computed } from "vue";
 import { UserPermission } from "./api/users";
+import router from "./router";
 
 const authStore = useAuthStore();
 
 const isAuthenticated = computed(() => authStore.isAuthenticated);
 const user = computed(() => authStore.user);
 
+const showHeaderFooter = computed(
+  () =>
+    router.currentRoute.value.meta.showHeaderFooter ??
+    router.currentRoute.value.matched.length > 0
+);
+
 const clientVersion = __APP_VERSION__;
 </script>
 
 <template>
   <div>
-    <header>
+    <header v-if="showHeaderFooter">
       <nav v-if="isAuthenticated">
         <ul>
           <li>
@@ -40,7 +47,9 @@ const clientVersion = __APP_VERSION__;
       <RouterView />
     </main>
 
-    <footer>StreamSys Copyright &copy; 2024 Garnet DeGelder</footer>
+    <footer v-if="showHeaderFooter">
+      StreamSys Copyright &copy; 2024 Garnet DeGelder
+    </footer>
   </div>
 </template>
 

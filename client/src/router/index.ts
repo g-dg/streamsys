@@ -15,19 +15,25 @@ const router = createRouter({
       name: "login",
       path: "/login",
       component: () => import("@/views/LoginView.vue"),
-      meta: { requiresAuth: false },
+      meta: {
+        requiresAuth: false,
+      },
     },
     {
       name: "logout",
       path: "/logout",
       component: () => import("@/views/LogoutView.vue"),
-      meta: { requiresAuth: false },
+      meta: {
+        requiresAuth: false,
+      },
     },
     {
       name: "about",
       path: "/about",
       component: () => import("@/views/AboutView.vue"),
-      meta: { requiresAuth: false },
+      meta: {
+        requiresAuth: false,
+      },
     },
     {
       name: "account",
@@ -56,12 +62,16 @@ const router = createRouter({
       path: "/display/:displayName",
       props: true,
       component: () => import("@/views/DisplayView.vue"),
+      meta: {
+        requiresAuth: false,
+        showHeaderFooter: false,
+      },
     },
   ],
 });
 
 router.beforeEach((to, from, next) => {
-  if (to.meta?.requiresAuth) {
+  if (to.meta?.requiresAuth ?? true) {
     const authStore = useAuthStore();
 
     if (!authStore.isAuthenticated) {
