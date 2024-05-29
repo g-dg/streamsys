@@ -27,6 +27,8 @@ pub enum DisplayStateRequest {
     Get { get: bool },
     Authenticate { auth_token: String },
     Set { state: DisplayState },
+    Ping { ping: String },
+    Pong { pong: String },
 }
 
 #[derive(Serialize, Deserialize)]
@@ -34,6 +36,8 @@ pub enum DisplayStateRequest {
 pub enum DisplayStateResponse {
     AuthResult { auth: bool },
     State { state: DisplayState },
+    Ping { ping: String },
+    Pong { pong: String },
 }
 
 pub async fn handler(State(state): State<Arc<AppState>>, ws: WebSocketUpgrade) -> Response {
@@ -150,6 +154,19 @@ pub async fn websocket_handler(socket: WebSocket, state: Arc<AppState>) {
                                 }
                             }
                         }
+
+                        DisplayStateRequest::Ping { ping } => {
+                            let send_result = send_response(
+                                &DisplayStateResponse::Pong { pong: ping },
+                                &r_queue_send,
+                            )
+                            .await;
+                            if send_result.is_err() {
+                                return;
+                            }
+                        }
+
+                        DisplayStateRequest::Pong { pong: _ } => {}
                     }
                 }
                 Message::Close(_) => return,

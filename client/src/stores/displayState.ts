@@ -3,6 +3,7 @@ import { sleep } from "@/helpers/sleep";
 import { defineStore } from "pinia";
 import { computed, ref, type ComputedRef, type Ref } from "vue";
 import { useAuthStore } from "./auth";
+import { randomString } from "@/helpers/random";
 
 export interface DisplayState {
   id: string;
@@ -40,17 +41,17 @@ export const useDisplayStateStore = defineStore("displayState", () => {
         _ws!.removeEventListener("error", errorListener);
       };
 
-      const openListener = () => {
-        resolve();
-        removeListeners();
-      };
-      _ws!.addEventListener("open", openListener);
-
       const errorListener = (e: Event) => {
         reject(e);
         removeListeners();
       };
       _ws!.addEventListener("error", errorListener);
+
+      const openListener = () => {
+        resolve();
+        removeListeners();
+      };
+      _ws!.addEventListener("open", openListener);
 
       if (_ws!.readyState === WebSocket.OPEN) {
         resolve();
@@ -96,8 +97,14 @@ export const useDisplayStateStore = defineStore("displayState", () => {
       try {
         const response = JSON.parse(evt.data);
 
-        if (response.state != undefined) {
+        // set state if state changed
+        if (response.state !== undefined) {
           _currentState.value = response.state;
+        }
+
+        // respond to pings
+        if (response.ping !== undefined) {
+          _ws?.send(JSON.stringify({ pong: response.ping }));
         }
       } catch (e) {
         console.error("Error parsing response from display state websocket", e);
@@ -135,6 +142,17 @@ export const useDisplayStateStore = defineStore("displayState", () => {
     // get latest value
     const initialLoadPromise = new Promise<void>((resolve, _) => {
       const initialLoadListener = (evt: MessageEvent<any>) => {
+        let loaded = false;
+        while (!loaded) {
+          try {
+            const response = JSON.parse(evt.data);
+
+            // wait for state change listener to get state change
+            if (response.state !== undefined) {
+              loaded = true;
+            }
+          } catch {}
+        }
         resolve();
         _ws!.removeEventListener("message", initialLoadListener);
       };
@@ -176,16 +194,16 @@ export const useDisplayStateStore = defineStore("displayState", () => {
   async function authenticate(): Promise<void> {
     const authStore = useAuthStore();
 
-    const request = {
+    const request = JSON.stringify({
       auth_token: authStore.token ?? "",
-    };
+    });
 
     const authPromise = new Promise<void>((resolve) => {
       const authListener = (evt: MessageEvent<any>) => {
         try {
           const response = JSON.parse(evt.data);
 
-          if (response.auth != undefined) {
+          if (response.auth !== undefined) {
             resolve(response.auth);
           }
         } catch (e) {
@@ -199,7 +217,7 @@ export const useDisplayStateStore = defineStore("displayState", () => {
       _ws!.addEventListener("message", authListener);
     });
 
-    _ws?.send(JSON.stringify(request));
+    _ws?.send(request);
 
     return await authPromise;
   }
@@ -209,20 +227,46 @@ export const useDisplayStateStore = defineStore("displayState", () => {
    * @param state State to set
    */
   function setState(state: DisplayState): void {
-    const authStore = useAuthStore();
-
-    const request = {
+    const request = JSON.stringify({
       state,
-    };
+    });
 
-    _ws?.send(JSON.stringify(request));
+    _ws?.send(request);
   }
 
   /**
    * Requests a refresh of the display state
    */
   function refresh(): void {
-    _ws?.send(JSON.stringify({ get: true }));
+    const request = JSON.stringify({ get: true });
+    _ws?.send(request);
+  }
+
+  /**
+   * Sends a ping to the server and waits for a response
+   */
+  async function ping(): Promise<void> {
+    const value = randomString(16);
+
+    const request = JSON.stringify({ ping: value });
+
+    const pongPromise = new Promise<void>((resolve) => {
+      const pongListener = (evt: MessageEvent<any>) => {
+        try {
+          const response = JSON.parse(evt.data);
+
+          if (response.pong !== undefined && response.pong == value) {
+            resolve();
+          }
+        } catch {}
+        _ws!.removeEventListener("message", pongListener);
+      };
+      _ws!.addEventListener("message", pongListener);
+    });
+
+    _ws?.send(request);
+
+    return await pongPromise;
   }
 
   return {
@@ -233,5 +277,6 @@ export const useDisplayStateStore = defineStore("displayState", () => {
     authenticate,
     setState,
     refresh,
+    ping,
   };
 });
