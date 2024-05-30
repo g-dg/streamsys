@@ -30,6 +30,26 @@ export const useDisplayStateStore = defineStore("displayState", () => {
   let _isConnected: boolean = false;
   let _stopRetries: boolean = false;
 
+  function _waitForEvent<TEventType extends Event, TValue>(
+    event: "open" | "error" | "message" | "close",
+    handler: (evt: TEventType) => TValue | undefined
+  ): Promise<TValue> {
+    return new Promise<TValue>((resolve, reject) => {
+      const messageListener = (evt: TEventType) => {
+        try {
+          const result = handler(evt);
+          if (result !== undefined) {
+            resolve(result);
+          }
+        } catch (e) {
+          reject(e);
+        }
+        _ws!.removeEventListener("message", messageListener as any);
+      };
+      _ws!.addEventListener("message", messageListener as any);
+    });
+  }
+
   async function _connectWs() {
     // connect to websocket
     _ws = new WebSocket(`${API_URI}${WS_URI}`);
@@ -140,26 +160,7 @@ export const useDisplayStateStore = defineStore("displayState", () => {
     _ws.addEventListener("error", _errorListener);
 
     // get latest value
-    const initialLoadPromise = new Promise<void>((resolve, _) => {
-      const initialLoadListener = (evt: MessageEvent<any>) => {
-        let loaded = false;
-        while (!loaded) {
-          try {
-            const response = JSON.parse(evt.data);
-
-            // wait for state change listener to get state change
-            if (response.state !== undefined) {
-              loaded = true;
-            }
-          } catch {}
-        }
-        resolve();
-        _ws!.removeEventListener("message", initialLoadListener);
-      };
-      _ws!.addEventListener("message", initialLoadListener);
-    });
-    refresh();
-    await initialLoadPromise;
+    await refresh();
   }
 
   /**
@@ -198,23 +199,9 @@ export const useDisplayStateStore = defineStore("displayState", () => {
       auth_token: authStore.token ?? "",
     });
 
-    const authPromise = new Promise<void>((resolve) => {
-      const authListener = (evt: MessageEvent<any>) => {
-        try {
-          const response = JSON.parse(evt.data);
-
-          if (response.auth !== undefined) {
-            resolve(response.auth);
-          }
-        } catch (e) {
-          console.error(
-            "Error parsing response from display state websocket",
-            e
-          );
-        }
-        _ws!.removeEventListener("message", authListener);
-      };
-      _ws!.addEventListener("message", authListener);
+    const authPromise = _waitForEvent("message", (evt: MessageEvent<any>) => {
+      const response = JSON.parse(evt.data);
+      return response.auth;
     });
 
     _ws?.send(request);
@@ -226,20 +213,38 @@ export const useDisplayStateStore = defineStore("displayState", () => {
    * Sets a new state for the display
    * @param state State to set
    */
-  function setState(state: DisplayState): void {
+  async function setState(state: DisplayState): Promise<void> {
     const request = JSON.stringify({
       state,
     });
 
+    const setPromise = _waitForEvent("message", (evt: MessageEvent<any>) => {
+      const response = JSON.parse(evt.data);
+      return response.state;
+    });
+
     _ws?.send(request);
+
+    await setPromise;
   }
 
   /**
    * Requests a refresh of the display state
    */
-  function refresh(): void {
+  async function refresh(): Promise<void> {
     const request = JSON.stringify({ get: true });
+
+    const refreshPromise = _waitForEvent(
+      "message",
+      (evt: MessageEvent<any>) => {
+        const response = JSON.parse(evt.data);
+        return response.state;
+      }
+    );
+
     _ws?.send(request);
+
+    await refreshPromise;
   }
 
   /**
@@ -248,23 +253,19 @@ export const useDisplayStateStore = defineStore("displayState", () => {
   async function ping(): Promise<void> {
     const value = randomString(16);
 
-    const request = JSON.stringify({ ping: value });
+    const pingRequest = JSON.stringify({ ping: value });
 
-    const pongPromise = new Promise<void>((resolve) => {
-      const pongListener = (evt: MessageEvent<any>) => {
-        try {
-          const response = JSON.parse(evt.data);
+    const pongPromise = _waitForEvent("message", (evt: MessageEvent<any>) => {
+      const response = JSON.parse(evt.data);
 
-          if (response.pong !== undefined && response.pong == value) {
-            resolve();
-          }
-        } catch {}
-        _ws!.removeEventListener("message", pongListener);
-      };
-      _ws!.addEventListener("message", pongListener);
+      if (response.pong !== undefined && response.pong == value) {
+        return response.pong;
+      } else {
+        return undefined;
+      }
     });
 
-    _ws?.send(request);
+    _ws?.send(pingRequest);
 
     return await pongPromise;
   }
