@@ -33,6 +33,10 @@ export const useDisplayStateStore = defineStore("displayState", () => {
 
   let _debug: boolean = false;
 
+  let _pingLoopDelay = 1000;
+  let _pingLoopTaskId: Symbol | undefined;
+  let _pingLoopPromise: Promise<void> | undefined = undefined;
+
   function _waitForMessage<T>(
     extractFunction: (message: any) => T | undefined
   ): Promise<T> {
@@ -112,7 +116,7 @@ export const useDisplayStateStore = defineStore("displayState", () => {
       _isConnecting = true;
 
       // disconnect (if connected)
-      disconnect();
+      await disconnect();
       _isDisconnecting = false;
 
       // connect
@@ -188,6 +192,8 @@ export const useDisplayStateStore = defineStore("displayState", () => {
       // get latest value
       await refresh();
 
+      _startPingLoop();
+
       _isConnecting = false;
     }
   }
@@ -195,11 +201,12 @@ export const useDisplayStateStore = defineStore("displayState", () => {
   /**
    * Disconnects from the display state websocket, cancelling any reconnect attempts
    */
-  function disconnect(): void {
+  async function disconnect(): Promise<void> {
     _isDisconnecting = true;
     _isConnected = false;
     _isConnecting = false;
 
+    _endPingLoop();
     _ws?.removeEventListener("message", _messageListener!);
     _ws?.removeEventListener("close", _closeListener!);
     _ws?.removeEventListener("error", _errorListener!);
@@ -280,6 +287,23 @@ export const useDisplayStateStore = defineStore("displayState", () => {
     _ws?.send(pingRequest);
 
     return await pongPromise;
+  }
+
+  function _startPingLoop() {
+    _pingLoopTaskId = Symbol();
+    _pingLoopPromise = _pingLoop(_pingLoopTaskId);
+  }
+
+  async function _pingLoop(taskId: Symbol) {
+    while (_pingLoopTaskId == taskId && _pingLoopDelay != null) {
+      await ping();
+      await sleep(_pingLoopDelay);
+    }
+  }
+
+  async function _endPingLoop() {
+    _pingLoopTaskId = undefined;
+    await _pingLoopPromise;
   }
 
   return {
