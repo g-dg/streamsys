@@ -27,26 +27,50 @@ export const useDisplayStateStore = defineStore("displayState", () => {
   let _closeListener: ((evt: CloseEvent) => void) | null = null;
   let _errorListener: ((evt: Event) => void) | null = null;
 
+  let _isConnecting: boolean = false;
   let _isConnected: boolean = false;
-  let _stopRetries: boolean = false;
+  let _isDisconnecting: boolean = false;
 
-  function _waitForEvent<TEventType extends Event, TValue>(
-    event: "open" | "error" | "message" | "close",
-    handler: (evt: TEventType) => TValue | undefined
-  ): Promise<TValue> {
-    return new Promise<TValue>((resolve, reject) => {
-      const messageListener = (evt: TEventType) => {
+  let _debug: boolean = false;
+
+  function _waitForMessage<T>(
+    extractFunction: (message: any) => T | undefined
+  ): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const cleanupListeners = () => {
+        _ws!.removeEventListener("error", errorListener);
+        _ws!.removeEventListener("close", closeListener);
+        _ws!.removeEventListener("message", messageListener);
+      };
+
+      const messageListener = (evt: MessageEvent<any>) => {
         try {
-          const result = handler(evt);
+          const message_json = evt.data;
+          const message = JSON.parse(message_json);
+          const result = extractFunction(message);
           if (result !== undefined) {
             resolve(result);
+            cleanupListeners();
           }
         } catch (e) {
           reject(e);
+          cleanupListeners();
         }
-        _ws!.removeEventListener("message", messageListener as any);
       };
-      _ws!.addEventListener("message", messageListener as any);
+
+      const closeListener = (evt: CloseEvent) => {
+        reject(evt);
+        cleanupListeners();
+      };
+
+      const errorListener = (evt: Event) => {
+        reject(evt);
+        cleanupListeners();
+      };
+
+      _ws!.addEventListener("message", messageListener);
+      _ws!.addEventListener("close", closeListener);
+      _ws!.addEventListener("error", errorListener);
     });
   }
 
@@ -84,91 +108,97 @@ export const useDisplayStateStore = defineStore("displayState", () => {
    * Connects (or reconnects) to the display state websocket
    */
   async function connect(): Promise<void> {
-    // disconnect (if connected)
-    disconnect();
-    _stopRetries = false;
+    if (!_isConnecting) {
+      _isConnecting = true;
 
-    // connect
-    while (_ws == null && !_stopRetries) {
-      try {
-        await _connectWs();
-      } catch (e) {
-        console.error(
-          "Error occurred connecting to display state websocket",
-          e
-        );
-        _ws = null;
-        await sleep(RECONNECT_DELAY);
-      }
-    }
-
-    if (_stopRetries) {
-      return;
-    }
-
-    if (_ws == null) {
-      throw new Error("Could not connect to display state websocket");
-    }
-
-    _isConnected = true;
-
-    // set up message listener
-    _messageListener = async (evt: MessageEvent<any>) => {
-      try {
-        const response = JSON.parse(evt.data);
-
-        // set state if state changed
-        if (response.state !== undefined) {
-          _currentState.value = response.state;
-        }
-
-        // respond to pings
-        if (response.ping !== undefined) {
-          _ws?.send(JSON.stringify({ pong: response.ping }));
-        }
-      } catch (e) {
-        console.error("Error parsing response from display state websocket", e);
-      }
-    };
-    _ws.addEventListener("message", _messageListener);
-
-    // set up close listener
-    _closeListener = async (evt: CloseEvent) => {
+      // disconnect (if connected)
       disconnect();
-      _stopRetries = false;
+      _isDisconnecting = false;
 
-      // reconnect if not closing
-      await sleep(RECONNECT_DELAY);
-      if (!_stopRetries) {
-        await connect();
+      // connect
+      while (_ws == null && !_isDisconnecting) {
+        try {
+          await _connectWs();
+        } catch (e) {
+          if (_debug) {
+            console.error(
+              "Error occurred connecting to display state websocket",
+              e
+            );
+          }
+          _ws = null;
+          await sleep(RECONNECT_DELAY);
+        }
       }
-    };
-    _ws.addEventListener("close", _closeListener);
 
-    // set up error handler (reconnect on error)
-    _errorListener = async (evt: Event) => {
-      console.error("Error occurred on display state websocket", evt);
-      disconnect();
-      _stopRetries = false;
-
-      // reconnect if not closing
-      await sleep(RECONNECT_DELAY);
-      if (!_stopRetries) {
-        await connect();
+      if (_isDisconnecting) {
+        return;
       }
-    };
-    _ws.addEventListener("error", _errorListener);
 
-    // get latest value
-    await refresh();
+      if (_ws == null) {
+        throw new Error("Could not connect to display state websocket");
+      }
+
+      _isConnected = true;
+
+      // set up message listener
+      _messageListener = async (evt: MessageEvent<any>) => {
+        try {
+          const response = JSON.parse(evt.data);
+
+          // set state if state changed
+          if (response.state !== undefined) {
+            _currentState.value = response.state;
+          }
+
+          // respond to pings
+          if (response.ping !== undefined) {
+            _ws?.send(JSON.stringify({ pong: response.ping }));
+          }
+        } catch (e) {
+          if (_debug) {
+            console.error(
+              "Error parsing response from display state websocket",
+              e
+            );
+          }
+          connect();
+        }
+      };
+      _ws.addEventListener("message", _messageListener);
+
+      // set up close listener
+      _closeListener = async (evt: CloseEvent) => {
+        // reconnect if we're not closing the connection on our end
+        if (!_isDisconnecting) {
+          connect();
+        }
+      };
+      _ws.addEventListener("close", _closeListener);
+
+      // set up error handler (reconnect on error)
+      _errorListener = async (evt: Event) => {
+        if (_debug) {
+          console.error("Error occurred on display state websocket", evt);
+        }
+        connect();
+      };
+      _ws.addEventListener("error", _errorListener);
+
+      // get latest value
+      await refresh();
+
+      _isConnecting = false;
+    }
   }
 
   /**
-   * Disconnects from the display state websocket
+   * Disconnects from the display state websocket, cancelling any reconnect attempts
    */
   function disconnect(): void {
-    _stopRetries = true;
+    _isDisconnecting = true;
     _isConnected = false;
+    _isConnecting = false;
 
     _ws?.removeEventListener("message", _messageListener!);
     _ws?.removeEventListener("close", _closeListener!);
@@ -199,10 +229,7 @@ export const useDisplayStateStore = defineStore("displayState", () => {
       auth_token: authStore.token ?? "",
     });
 
-    const authPromise = _waitForEvent("message", (evt: MessageEvent<any>) => {
-      const response = JSON.parse(evt.data);
-      return response.auth;
-    });
+    const authPromise = _waitForMessage((message) => message.auth);
 
     _ws?.send(request);
 
@@ -213,38 +240,29 @@ export const useDisplayStateStore = defineStore("displayState", () => {
    * Sets a new state for the display
    * @param state State to set
    */
-  async function setState(state: DisplayState): Promise<void> {
+  async function setState(state: DisplayState): Promise<DisplayState> {
     const request = JSON.stringify({
       state,
     });
 
-    const setPromise = _waitForEvent("message", (evt: MessageEvent<any>) => {
-      const response = JSON.parse(evt.data);
-      return response.state;
-    });
+    const setPromise = _waitForMessage((message) => message.state);
 
     _ws?.send(request);
 
-    await setPromise;
+    return await setPromise;
   }
 
   /**
    * Requests a refresh of the display state
    */
-  async function refresh(): Promise<void> {
+  async function refresh(): Promise<DisplayState> {
     const request = JSON.stringify({ get: true });
 
-    const refreshPromise = _waitForEvent(
-      "message",
-      (evt: MessageEvent<any>) => {
-        const response = JSON.parse(evt.data);
-        return response.state;
-      }
-    );
+    const refreshPromise = _waitForMessage((message) => message.state);
 
     _ws?.send(request);
 
-    await refreshPromise;
+    return await refreshPromise;
   }
 
   /**
@@ -255,15 +273,9 @@ export const useDisplayStateStore = defineStore("displayState", () => {
 
     const pingRequest = JSON.stringify({ ping: value });
 
-    const pongPromise = _waitForEvent("message", (evt: MessageEvent<any>) => {
-      const response = JSON.parse(evt.data);
-
-      if (response.pong !== undefined && response.pong == value) {
-        return response.pong;
-      } else {
-        return undefined;
-      }
-    });
+    const pongPromise = _waitForMessage((message) =>
+      message.pong == value ? message.pong : undefined
+    );
 
     _ws?.send(pingRequest);
 
