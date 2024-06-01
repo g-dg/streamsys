@@ -14,6 +14,9 @@ pub struct AppConfig {
     #[serde(default = "default_cors_allowed_origins")]
     pub cors_allowed_origins: Vec<String>,
 
+    #[serde(default = "default_client_proxy_url")]
+    pub client_proxy_url: Option<String>,
+
     #[serde(default = "default_database_file")]
     pub database_file: String,
 
@@ -76,6 +79,9 @@ fn default_cors_allowed_origins() -> Vec<String> {
         // String::from("http://localhost:5173"),
         // String::from("http://127.0.0.1:5173"),
     ])
+}
+fn default_client_proxy_url() -> Option<String> {
+    None
 }
 fn default_database_file() -> String {
     String::from("./database.sqlite3")

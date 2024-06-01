@@ -5,7 +5,10 @@ use std::{
 };
 
 use axum::{
+    extract::{Request, State},
     http::{header, HeaderValue, Method},
+    response::IntoResponse,
+    routing::get,
     Router,
 };
 use tokio::net::TcpListener;
@@ -84,25 +87,67 @@ impl App {
             .map(|x| x.parse().unwrap())
             .collect();
 
+        let client_router = if config.client_proxy_url.is_some() {
+            async fn client_proxy_handler(
+                State(state): State<Arc<AppState>>,
+                req: Request,
+            ) -> impl IntoResponse {
+                let request_path = req.uri().path();
+                let request_path_query = req
+                    .uri()
+                    .path_and_query()
+                    .map(|path_and_query| path_and_query.as_str())
+                    .unwrap_or(request_path);
+
+                let client_uri_root = state
+                    .config
+                    .client_proxy_url
+                    .as_ref()
+                    .unwrap()
+                    .trim_end_matches('/');
+
+                let uri = format!("{}{}", client_uri_root, request_path_query);
+
+                let response = reqwest::get(uri).await.unwrap();
+
+                (
+                    [(
+                        header::CONTENT_TYPE,
+                        String::from(
+                            response
+                                .headers()
+                                .get(header::CONTENT_TYPE.as_str())
+                                .map(|content_type| content_type.to_str().unwrap())
+                                .unwrap_or("text/plain"),
+                        ),
+                    )],
+                    response.bytes().await.unwrap(),
+                )
+            }
+
+            Router::new()
+                .route("/", get(client_proxy_handler))
+                .route("/*path", get(client_proxy_handler))
+        } else {
+            Router::new()
+                .route_service("/", ServeFile::new(&static_file_index))
+                .route_service(
+                    "/*path",
+                    ServeDir::new(&state.config.static_file_root)
+                        .fallback(ServeFile::new(&static_file_index)),
+                )
+                .layer(SetResponseHeaderLayer::if_not_present(
+                    header::CACHE_CONTROL,
+                    HeaderValue::from_str(&format!(
+                        "max-age={}",
+                        state.config.http_caching_max_age
+                    ))
+                    .unwrap(),
+                ))
+        };
+
         let router = Router::new()
-            .nest(
-                "/",
-                Router::new()
-                    .route_service("/", ServeFile::new(&static_file_index))
-                    .route_service(
-                        "/*path",
-                        ServeDir::new(&state.config.static_file_root)
-                            .fallback(ServeFile::new(&static_file_index)),
-                    )
-                    .layer(SetResponseHeaderLayer::if_not_present(
-                        header::CACHE_CONTROL,
-                        HeaderValue::from_str(&format!(
-                            "max-age={}",
-                            state.config.http_caching_max_age
-                        ))
-                        .unwrap(),
-                    )),
-            )
+            .nest("/", client_router)
             .nest(
                 "/api",
                 api::route().layer(SetResponseHeaderLayer::if_not_present(
