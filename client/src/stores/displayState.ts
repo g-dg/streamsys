@@ -33,7 +33,7 @@ export const useDisplayStateStore = defineStore("displayState", () => {
 
   let _debug: boolean = false;
 
-  let _pingLoopDelay = 1000;
+  let _pingLoopDelay: number | null = 1000;
   let _pingLoopTaskId: Symbol | undefined;
   let _pingLoopPromise: Promise<void> | undefined = undefined;
 
@@ -112,90 +112,91 @@ export const useDisplayStateStore = defineStore("displayState", () => {
    * Connects (or reconnects) to the display state websocket
    */
   async function connect(): Promise<void> {
-    if (!_isConnecting) {
-      _isConnecting = true;
+    if (_isConnecting) {
+      return;
+    }
+    _isConnecting = true;
 
-      // disconnect (if connected)
-      await disconnect();
-      _isDisconnecting = false;
+    // disconnect (if connected)
+    await disconnect();
+    _isDisconnecting = false;
 
-      // connect
-      while (_ws == null && !_isDisconnecting) {
-        try {
-          await _connectWs();
-        } catch (e) {
-          if (_debug) {
-            console.error(
-              "Error occurred connecting to display state websocket",
-              e
-            );
-          }
-          _ws = null;
-          await sleep(RECONNECT_DELAY);
-        }
-      }
-
-      if (_isDisconnecting) {
-        return;
-      }
-
-      if (_ws == null) {
-        throw new Error("Could not connect to display state websocket");
-      }
-
-      _isConnected = true;
-
-      // set up message listener
-      _messageListener = async (evt: MessageEvent<any>) => {
-        try {
-          const response = JSON.parse(evt.data);
-
-          // set state if state changed
-          if (response.state !== undefined) {
-            _currentState.value = response.state;
-          }
-
-          // respond to pings
-          if (response.ping !== undefined) {
-            _ws?.send(JSON.stringify({ pong: response.ping }));
-          }
-        } catch (e) {
-          if (_debug) {
-            console.error(
-              "Error parsing response from display state websocket",
-              e
-            );
-          }
-          connect();
-        }
-      };
-      _ws.addEventListener("message", _messageListener);
-
-      // set up close listener
-      _closeListener = async (evt: CloseEvent) => {
-        // reconnect if we're not closing the connection on our end
-        if (!_isDisconnecting) {
-          connect();
-        }
-      };
-      _ws.addEventListener("close", _closeListener);
-
-      // set up error handler (reconnect on error)
-      _errorListener = async (evt: Event) => {
+    // connect
+    while (_ws == null && !_isDisconnecting) {
+      try {
+        await _connectWs();
+      } catch (e) {
         if (_debug) {
-          console.error("Error occurred on display state websocket", evt);
+          console.error(
+            "Error occurred connecting to display state websocket",
+            e
+          );
+        }
+        _ws = null;
+        await sleep(RECONNECT_DELAY);
+      }
+    }
+
+    if (_isDisconnecting) {
+      return;
+    }
+
+    if (_ws == null) {
+      throw new Error("Could not connect to display state websocket");
+    }
+
+    _isConnected = true;
+
+    // set up message listener
+    _messageListener = async (evt: MessageEvent<any>) => {
+      try {
+        const response = JSON.parse(evt.data);
+
+        // set state if state changed
+        if (response.state !== undefined) {
+          _currentState.value = response.state;
+        }
+
+        // respond to pings
+        if (response.ping !== undefined) {
+          _ws?.send(JSON.stringify({ pong: response.ping }));
+        }
+      } catch (e) {
+        if (_debug) {
+          console.error(
+            "Error parsing response from display state websocket",
+            e
+          );
         }
         connect();
-      };
-      _ws.addEventListener("error", _errorListener);
+      }
+    };
+    _ws.addEventListener("message", _messageListener);
 
-      // get latest value
-      await refresh();
+    // set up close listener
+    _closeListener = async (evt: CloseEvent) => {
+      // reconnect if we're not closing the connection on our end
+      if (!_isDisconnecting) {
+        connect();
+      }
+    };
+    _ws.addEventListener("close", _closeListener);
 
-      _startPingLoop();
+    // set up error handler (reconnect on error)
+    _errorListener = async (evt: Event) => {
+      if (_debug) {
+        console.error("Error occurred on display state websocket", evt);
+      }
+      connect();
+    };
+    _ws.addEventListener("error", _errorListener);
 
-      _isConnecting = false;
-    }
+    // get latest value
+    await refresh();
+
+    _startPingLoop();
+
+    _isConnecting = false;
   }
 
   /**
@@ -306,6 +307,13 @@ export const useDisplayStateStore = defineStore("displayState", () => {
     await _pingLoopPromise;
   }
 
+  /**
+   * Sets the ping delay
+   */
+  function setPingDelay(ms: number | null) {
+    _pingLoopDelay = ms;
+  }
+
   return {
     connect,
     disconnect,
@@ -315,5 +323,6 @@ export const useDisplayStateStore = defineStore("displayState", () => {
     setState,
     refresh,
     ping,
+    setPingDelay,
   };
 });
