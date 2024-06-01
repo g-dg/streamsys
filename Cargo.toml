@@ -16,10 +16,11 @@ r2d2 = { version = "0.8" }
 r2d2_sqlite = { version = "0.24" }
 rand = { version = "0.8" }
 ratatui = { version = "0.26" }
+reqwest = { version = "0.12", features = ["gzip", "brotli", "zstd", "deflate", "json", "stream"] }
 rusqlite = { version = "0.31", features = ["bundled", "functions", "backup", "vtab", "array", "csvtab", "i128_blob", "serialize", "chrono", "serde_json", "uuid"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
-tokio = { version = "1.37", features = ["full"] }
+tokio = { version = "1.38", features = ["full"] }
 tokio-stream = { version = "0.1" }
 tokio-util = { version = "0.7" }
 tower = { version = "0.4", features = ["full"] }
