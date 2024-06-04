@@ -28,9 +28,11 @@ async function setState() {
   <div>
     {{ displayName }}
     <br />
-    <label>ID:</label>
-    <input v-model="newStateID" type="text" />
-    <input @click="setState" type="submit" value="Set" />
+    <form @submit.prevent="setState">
+      <label>ID:</label>
+      <input v-model="newStateID" type="text" />
+      <input type="submit" value="Set" />
+    </form>
     <br />
     <code>
       <pre>{{ displayStateStore.currentState }}</pre>

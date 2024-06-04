@@ -4,6 +4,7 @@ import { defineStore } from "pinia";
 import { computed, ref, type ComputedRef, type Ref } from "vue";
 import { useAuthStore } from "./auth";
 import { randomString } from "@/helpers/random";
+import { UserPermission } from "@/api/users";
 
 export interface DisplayState {
   id: string;
@@ -14,6 +15,9 @@ export interface DisplayState {
 export const useDisplayStateStore = defineStore("displayState", () => {
   const WS_URI = "api/display-state";
   const RECONNECT_DELAY = 1000;
+  const REQUIRED_SET_PERMISSIONS = UserPermission.OPERATION;
+  const DEFAULT_PING_DELAY = 1000;
+  const PING_ID_LENGTH = 8;
 
   let _ws: WebSocket | null = null;
 
@@ -30,10 +34,11 @@ export const useDisplayStateStore = defineStore("displayState", () => {
   let _isConnecting: boolean = false;
   let _isConnected: boolean = false;
   let _isDisconnecting: boolean = false;
+  let _isAuthenticated: boolean = false;
 
   let _debug: boolean = false;
 
-  let _pingLoopDelay: number | null = 1000;
+  let _pingLoopDelay: number | null = DEFAULT_PING_DELAY;
   let _pingLoopTaskId: Symbol | undefined;
   let _pingLoopPromise: Promise<void> | undefined = undefined;
 
@@ -117,6 +122,8 @@ export const useDisplayStateStore = defineStore("displayState", () => {
     }
     _isConnecting = true;
 
+    _isAuthenticated = false;
+
     // disconnect (if connected)
     await disconnect();
     _isDisconnecting = false;
@@ -146,6 +153,8 @@ export const useDisplayStateStore = defineStore("displayState", () => {
     }
 
     _isConnected = true;
+
+    const existingState = currentState.value;
 
     // set up message listener
     _messageListener = async (evt: MessageEvent<any>) => {
@@ -191,8 +200,22 @@ export const useDisplayStateStore = defineStore("displayState", () => {
     };
     _ws.addEventListener("error", _errorListener);
 
+    const authStore = useAuthStore();
+
     // get latest value
     await refresh();
+
+    // automatically set session if user has required permissions
+    if (((authStore.user?.permissions ?? 0) & REQUIRED_SET_PERMISSIONS) != 0) {
+      await authenticate();
+
+      console.debug(currentState.value, existingState);
+
+      // set state if state on server side is not set
+      if (currentState.value.id == "" && existingState.id != "") {
+        await setState(existingState);
+      }
+    }
 
     _startPingLoop();
 
@@ -206,6 +229,7 @@ export const useDisplayStateStore = defineStore("displayState", () => {
     _isDisconnecting = true;
     _isConnected = false;
     _isConnecting = false;
+    _isAuthenticated = false;
 
     _endPingLoop();
     _ws?.removeEventListener("message", _messageListener!);
@@ -230,7 +254,7 @@ export const useDisplayStateStore = defineStore("displayState", () => {
   /**
    * Sends the user's session token to the display state websocket
    */
-  async function authenticate(): Promise<void> {
+  async function authenticate(): Promise<boolean> {
     const authStore = useAuthStore();
 
     const request = JSON.stringify({
@@ -241,7 +265,10 @@ export const useDisplayStateStore = defineStore("displayState", () => {
 
     _ws?.send(request);
 
-    return await authPromise;
+    const result = (await authPromise) as boolean;
+    _isAuthenticated = result;
+
+    return result;
   }
 
   /**
@@ -277,7 +304,7 @@ export const useDisplayStateStore = defineStore("displayState", () => {
    * Sends a ping to the server and waits for a response
    */
   async function ping(): Promise<void> {
-    const value = randomString(16);
+    const value = randomString(PING_ID_LENGTH);
 
     const pingRequest = JSON.stringify({ ping: value });
 
