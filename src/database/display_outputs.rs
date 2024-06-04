@@ -5,5 +5,4 @@ use uuid::Uuid;
 pub struct DbDisplayOutput {
     pub id: Option<Uuid>,
     pub name: String,
-    pub template_vue_script: Option<String>,
 }

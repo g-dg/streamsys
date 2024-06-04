@@ -7,6 +7,8 @@ use uuid::Uuid;
 
 #[derive(Serialize, Deserialize)]
 pub enum ContentFor {
+    DisplayOutput,
+    SlideType,
     SlideGroup,
     Slide,
     SlideDeck,
@@ -16,6 +18,8 @@ pub enum ContentFor {
 impl ToSql for ContentFor {
     fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
         Ok(match self {
+            Self::DisplayOutput => "display_output",
+            Self::SlideType => "slide_type",
             Self::SlideGroup => "slide_group",
             Self::Slide => "slide",
             Self::SlideDeck => "slide_deck",
@@ -28,6 +32,8 @@ impl ToSql for ContentFor {
 impl FromSql for ContentFor {
     fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
         match value.as_str() {
+            Ok("display_output") => Ok(Self::DisplayOutput),
+            Ok("slide_type") => Ok(Self::SlideType),
             Ok("slide_group") => Ok(Self::SlideGroup),
             Ok("slide") => Ok(Self::Slide),
             Ok("slide_deck") => Ok(Self::SlideDeck),
@@ -48,7 +54,9 @@ pub struct SlideContent {
 }
 
 impl SlideContent {
-    pub const UNION_SELECT: &'static str = "SELECT \"id\", 'slide_group' AS \"for_type\", \"slide_group_id\" AS \"for_id\", \"key\", \"content\" FROM \"slide_group_content\" \
+    pub const UNION_SELECT: &'static str = "SELECT \"id\", 'display_output' AS \"for_type\", \"display_output_id\" AS \"for_id\", \"key\", \"content\" FROM \"display_output_content\" \
+        UNION ALL SELECT \"id\", 'slide_type' AS \"for_type\", \"slide_type_id\" AS \"for_id\", \"key\", \"content\" FROM \"slide_type_content\" \
+        UNION ALL SELECT \"id\", 'slide_group' AS \"for_type\", \"slide_group_id\" AS \"for_id\", \"key\", \"content\" FROM \"slide_group_content\" \
         UNION ALL SELECT \"id\", 'slide' AS \"for_type\", \"slide_id\" AS \"for_id\", \"key\", \"content\" FROM \"slide_content\" \
         UNION ALL SELECT \"id\", 'slide_deck' AS \"for_type\", \"slide_deck_id\" AS \"for_id\", \"key\", \"content\" FROM \"slide_deck_content_overrides\" \
         UNION ALL SELECT \"id\", 'slide_deck_section' AS \"for_type\", \"slide_deck_section_id\" AS \"for_id\", \"key\", \"content\" FROM \"slide_deck_section_content_overrides\" \
@@ -76,6 +84,8 @@ impl SlideContent {
 
     pub fn insert_stmt(for_type: ContentFor) -> &'static str {
         match for_type {
+            ContentFor::DisplayOutput => "INSERT INTO \"display_output_content\" (\"id\", \"display_output_id\", \"key\", \"content\") VALUES (:id, :for_id, :key, :content);",
+            ContentFor::SlideType => "INSERT INTO \"slide_type_content\" (\"id\", \"slide_type_id\", \"key\", \"content\") VALUES (:id, :for_id, :key, :content);",
             ContentFor::SlideGroup => "INSERT INTO \"slide_group_content\" (\"id\", \"slide_group_id\", \"key\", \"content\") VALUES (:id, :for_id, :key, :content);",
             ContentFor::Slide => "INSERT INTO \"slide_content\" (\"id\", \"slide_id\", \"key\", \"content\") VALUES (:id, :for_id, :key, :content);",
             ContentFor::SlideDeck => "INSERT INTO \"slide_deck_content_overrides\" (\"id\", \"slide_deck_id\", \"key\", \"content\") VALUES (:id, :for_id, :key, :content);",
@@ -86,6 +96,8 @@ impl SlideContent {
 
     pub fn update_stmt(for_type: ContentFor) -> &'static str {
         match for_type {
+            ContentFor::DisplayOutput => "UPDATE \"display_output_content\" SET \"display_output_id\" = :for_id, \"key\" = :key, \"content\" = :content WHERE \"id\" = :id;",
+            ContentFor::SlideType => "UPDATE \"slide_type_content\" SET \"slide_type_id\" = :for_id, \"key\" = :key, \"content\" = :content WHERE \"id\" = :id;",
             ContentFor::SlideGroup => "UPDATE \"slide_group_content\" SET \"slide_group_id\" = :for_id, \"key\" = :key, \"content\" = :content WHERE \"id\" = :id;",
             ContentFor::Slide => "UPDATE \"slide_content\" SET \"slide_id\" = :for_id, \"key\" = :key, \"content\" = :content WHERE \"id\" = :id;",
             ContentFor::SlideDeck => "UPDATE \"slide_deck_content_overrides\" SET \"slide_deck_id\" = :for_id, \"key\" = :key, \"content\" = :content WHERE \"id\" = :id;",

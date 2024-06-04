@@ -37,14 +37,28 @@ CREATE TABLE "log" (
 
 CREATE TABLE "display_outputs" (
     "id" BLOB PRIMARY KEY NOT NULL DEFAULT (randomblob(16)),
-    "name" TEXT NOT NULL UNIQUE,
-    "template_vue_script" TEXT
+    "name" TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE "display_output_content" (
+    "id" BLOB PRIMARY KEY NOT NULL DEFAULT (randomblob(16)),
+    "display_output_id" BLOB NOT NULL REFERENCES "display_outputs" ("id") ON UPDATE CASCADE ON DELETE CASCADE,
+    "key" TEXT NOT NULL,
+    "content" TEXT,
+    UNIQUE("display_output_id", "key") ON CONFLICT REPLACE
 );
 
 CREATE TABLE "slide_types" (
     "id" BLOB PRIMARY KEY NOT NULL DEFAULT (randomblob(16)),
-    "name" TEXT NOT NULL UNIQUE,
-    "template_vue_script" TEXT
+    "name" TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE "slide_type_content" (
+    "id" BLOB PRIMARY KEY NOT NULL DEFAULT (randomblob(16)),
+    "slide_type_id" BLOB NOT NULL REFERENCES "slide_types" ("id") ON UPDATE CASCADE ON DELETE CASCADE,
+    "key" TEXT NOT NULL,
+    "content" TEXT,
+    UNIQUE("slide_type_id", "key") ON CONFLICT REPLACE
 );
 
 CREATE TABLE "slide_groups" (
