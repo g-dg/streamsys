@@ -9,11 +9,11 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{app::AppState, users::service::User};
+use crate::{app::AppServices, users::service::User};
 
 use super::{db::UserPermission, extractor::AuthToken};
 
-pub fn route() -> Router<Arc<AppState>> {
+pub fn route() -> Router<Arc<AppServices>> {
     Router::new()
         .route("/", get(get_current_user))
         .route("/", post(login))
@@ -34,7 +34,7 @@ pub struct LoginResponse {
 
 /// Gets an api key for a user with a password
 pub async fn login(
-    State(state): State<Arc<AppState>>,
+    State(state): State<Arc<AppServices>>,
     Json(request): Json<LoginRequest>,
 ) -> impl IntoResponse {
     let result = state
@@ -58,7 +58,7 @@ pub async fn login(
 
 /// Gets the current user
 pub async fn get_current_user(
-    State(state): State<Arc<AppState>>,
+    State(state): State<Arc<AppServices>>,
     token: AuthToken,
 ) -> impl IntoResponse {
     let Ok(Some(current_user)) = token.authorize(&state, UserPermission::ANY) else {
@@ -69,7 +69,7 @@ pub async fn get_current_user(
 }
 
 /// Invalidates an api key
-pub async fn logout(State(state): State<Arc<AppState>>, token: AuthToken) -> impl IntoResponse {
+pub async fn logout(State(state): State<Arc<AppServices>>, token: AuthToken) -> impl IntoResponse {
     token.logout(&state);
 
     StatusCode::NO_CONTENT.into_response()

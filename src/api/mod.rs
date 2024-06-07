@@ -4,12 +4,12 @@ use std::sync::Arc;
 
 use axum::Router;
 
-use crate::{app::AppState, auth, display_state, users};
+use crate::{app::AppServices, auth, state, users};
 
-pub fn route() -> Router<Arc<AppState>> {
+pub fn route() -> Router<Arc<AppServices>> {
     Router::new()
         .nest("/server-info", server_info::route())
         .nest("/auth", auth::api::route())
         .nest("/users", users::api::route())
-        .nest("/display-state", display_state::api::route())
+        .nest("/state", state::api::route())
 }

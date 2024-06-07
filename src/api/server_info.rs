@@ -5,9 +5,9 @@ use axum::{
     Router,
 };
 
-use crate::app::AppState;
+use crate::app::AppServices;
 
-pub fn route() -> Router<Arc<AppState>> {
+pub fn route() -> Router<Arc<AppServices>> {
     Router::new()
         .route("/ping", post(ping))
         .route("/version", get(version))

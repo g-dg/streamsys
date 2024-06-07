@@ -1,4 +1,4 @@
-use crate::{app::AppState, users::db::DbUser};
+use crate::{app::AppServices, users::db::DbUser};
 use axum::{
     async_trait,
     extract::FromRequestParts,
@@ -29,7 +29,7 @@ impl AuthToken {
     /// Returns None if authorization failed.
     pub fn authorize(
         &self,
-        state: &AppState,
+        state: &AppServices,
         allowed_permissions: i64,
     ) -> Result<Option<DbUser>, AuthError> {
         if let Some(token) = &self.token {
@@ -46,7 +46,7 @@ impl AuthToken {
     }
 
     /// Helper method to invalidate the extracted API token
-    pub fn logout(&self, state: &AppState) {
+    pub fn logout(&self, state: &AppServices) {
         if let Some(token) = &self.token {
             state.auth_service.logout(token)
         }

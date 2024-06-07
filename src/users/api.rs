@@ -11,13 +11,13 @@ use serde_json::json;
 use uuid::Uuid;
 
 use crate::{
-    app::AppState,
+    app::AppServices,
     auth::{db::UserPermission, extractor::AuthToken},
 };
 
 use super::service::User;
 
-pub fn route() -> Router<Arc<AppState>> {
+pub fn route() -> Router<Arc<AppServices>> {
     Router::new()
         .route("/", get(list_users))
         .route("/", post(create_user))
@@ -28,7 +28,10 @@ pub fn route() -> Router<Arc<AppState>> {
         .route("/:user_id/password", put(change_password))
 }
 
-pub async fn list_users(State(state): State<Arc<AppState>>, token: AuthToken) -> impl IntoResponse {
+pub async fn list_users(
+    State(state): State<Arc<AppServices>>,
+    token: AuthToken,
+) -> impl IntoResponse {
     let Ok(Some(_current_user)) = token.authorize(&state, UserPermission::USER_ADMIN) else {
         return AuthToken::failure_response();
     };
@@ -39,7 +42,7 @@ pub async fn list_users(State(state): State<Arc<AppState>>, token: AuthToken) ->
 }
 
 pub async fn get_user(
-    State(state): State<Arc<AppState>>,
+    State(state): State<Arc<AppServices>>,
     Path(user_id): Path<Uuid>,
     token: AuthToken,
 ) -> impl IntoResponse {
@@ -56,7 +59,7 @@ pub async fn get_user(
 }
 
 pub async fn create_user(
-    State(state): State<Arc<AppState>>,
+    State(state): State<Arc<AppServices>>,
     token: AuthToken,
     Json(request): Json<User>,
 ) -> impl IntoResponse {
@@ -85,7 +88,7 @@ pub async fn create_user(
 }
 
 pub async fn update_user(
-    State(state): State<Arc<AppState>>,
+    State(state): State<Arc<AppServices>>,
     Path(user_id): Path<Uuid>,
     token: AuthToken,
     Json(request): Json<User>,
@@ -118,7 +121,7 @@ pub async fn update_user(
 }
 
 pub async fn delete_user(
-    State(state): State<Arc<AppState>>,
+    State(state): State<Arc<AppServices>>,
     Path(user_id): Path<Uuid>,
     token: AuthToken,
 ) -> impl IntoResponse {
@@ -144,7 +147,7 @@ pub async fn delete_user(
 }
 
 pub async fn invalidate_sessions(
-    State(state): State<Arc<AppState>>,
+    State(state): State<Arc<AppServices>>,
     Path(user_id): Path<Uuid>,
     token: AuthToken,
 ) -> impl IntoResponse {
@@ -166,7 +169,7 @@ pub async fn invalidate_sessions(
 }
 
 pub async fn change_password(
-    State(state): State<Arc<AppState>>,
+    State(state): State<Arc<AppServices>>,
     Path(user_id): Path<Uuid>,
     token: AuthToken,
     Json(request): Json<String>,

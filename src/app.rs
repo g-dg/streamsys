@@ -28,11 +28,11 @@ use crate::{
     auth::service::AuthService,
     config::{file::AppConfig, service::ConfigService},
     database::Database,
-    display_state::service::DisplayStateService,
+    state::service::StateService,
     users::service::UsersService,
 };
 
-pub struct AppState {
+pub struct AppServices {
     pub config: AppConfig,
     pub database: Database,
     pub shutdown_token: CancellationToken,
@@ -40,11 +40,11 @@ pub struct AppState {
     pub audit_service: AuditService,
     pub auth_service: AuthService,
     pub users_service: UsersService,
-    pub display_state_service: DisplayStateService,
+    pub state_service: StateService,
 }
 
 pub struct App {
-    pub state: Arc<AppState>,
+    pub services: Arc<AppServices>,
     pub router: Router,
     pub listener: TcpListener,
     pub shutdown_token: CancellationToken,
@@ -56,14 +56,14 @@ impl App {
 
         let database = Database::new(config);
 
-        let state = Arc::new(AppState {
+        let state = Arc::new(AppServices {
             config: config.clone(),
             shutdown_token: shutdown_token.clone(),
             config_service: ConfigService::new(&database),
             audit_service: AuditService::new(&database),
             auth_service: AuthService::new(&database, config),
             users_service: UsersService::new(&database, config),
-            display_state_service: DisplayStateService::new(),
+            state_service: StateService::new(),
             database,
         });
 
@@ -89,7 +89,7 @@ impl App {
 
         let client_router = if config.client_proxy_url.is_some() {
             async fn client_proxy_handler(
-                State(state): State<Arc<AppState>>,
+                State(state): State<Arc<AppServices>>,
                 req: Request,
             ) -> impl IntoResponse {
                 let request_path = req.uri().path();
@@ -178,7 +178,7 @@ impl App {
             .with_state(state.clone());
 
         Self {
-            state,
+            services: state,
             listener,
             router,
             shutdown_token,

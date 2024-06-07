@@ -6,14 +6,18 @@ import { useAuthStore } from "./auth";
 import { randomString } from "@/helpers/random";
 import { UserPermission } from "@/api/users";
 
-export interface DisplayState {
+export interface CurrentState {
   id: string;
+  display: DisplayState;
+}
+
+export interface DisplayState {
   content: Record<string, string>;
   slide_type_id: string | null;
 }
 
-export const useDisplayStateStore = defineStore("displayState", () => {
-  const WS_URI = "api/display-state";
+export const useStateStore = defineStore("state", () => {
+  const WS_URI = "api/state";
   const RECONNECT_DELAY = 1000;
   const REQUIRED_SET_PERMISSIONS = UserPermission.OPERATION;
   const DEFAULT_PING_DELAY = 1000;
@@ -21,10 +25,12 @@ export const useDisplayStateStore = defineStore("displayState", () => {
 
   let _ws: WebSocket | null = null;
 
-  const _currentState: Ref<DisplayState> = ref({
+  const _currentState: Ref<CurrentState> = ref({
     id: "",
-    content: {},
-    slide_type_id: null,
+    display: {
+      content: {},
+      slide_type_id: null,
+    },
   });
 
   let _messageListener: ((evt: MessageEvent<any>) => void) | null = null;
@@ -114,7 +120,7 @@ export const useDisplayStateStore = defineStore("displayState", () => {
   }
 
   /**
-   * Connects (or reconnects) to the display state websocket
+   * Connects (or reconnects) to the state websocket
    */
   async function connect(): Promise<void> {
     if (_isConnecting) {
@@ -134,10 +140,7 @@ export const useDisplayStateStore = defineStore("displayState", () => {
         await _connectWs();
       } catch (e) {
         if (_debug) {
-          console.error(
-            "Error occurred connecting to display state websocket",
-            e
-          );
+          console.error("Error occurred connecting to state websocket", e);
         }
         _ws = null;
         await sleep(RECONNECT_DELAY);
@@ -149,7 +152,7 @@ export const useDisplayStateStore = defineStore("displayState", () => {
     }
 
     if (_ws == null) {
-      throw new Error("Could not connect to display state websocket");
+      throw new Error("Could not connect to state websocket");
     }
 
     _isConnected = true;
@@ -172,10 +175,7 @@ export const useDisplayStateStore = defineStore("displayState", () => {
         }
       } catch (e) {
         if (_debug) {
-          console.error(
-            "Error parsing response from display state websocket",
-            e
-          );
+          console.error("Error parsing response from state websocket", e);
         }
         connect();
       }
@@ -194,7 +194,7 @@ export const useDisplayStateStore = defineStore("displayState", () => {
     // set up error handler (reconnect on error)
     _errorListener = async (evt: Event) => {
       if (_debug) {
-        console.error("Error occurred on display state websocket", evt);
+        console.error("Error occurred on state websocket", evt);
       }
       connect();
     };
@@ -223,7 +223,7 @@ export const useDisplayStateStore = defineStore("displayState", () => {
   }
 
   /**
-   * Disconnects from the display state websocket, cancelling any reconnect attempts
+   * Disconnects from the state websocket, cancelling any reconnect attempts
    */
   async function disconnect(): Promise<void> {
     _isDisconnecting = true;
@@ -245,14 +245,14 @@ export const useDisplayStateStore = defineStore("displayState", () => {
   const connected: ComputedRef<boolean> = computed(() => _isConnected);
 
   /**
-   * The current display state
+   * The current state
    */
-  const currentState: ComputedRef<DisplayState> = computed(
+  const currentState: ComputedRef<CurrentState> = computed(
     () => _currentState.value
   );
 
   /**
-   * Sends the user's session token to the display state websocket
+   * Sends the user's session token to the state websocket
    */
   async function authenticate(): Promise<boolean> {
     const authStore = useAuthStore();
@@ -272,10 +272,10 @@ export const useDisplayStateStore = defineStore("displayState", () => {
   }
 
   /**
-   * Sets a new state for the display
+   * Sets a new state
    * @param state State to set
    */
-  async function setState(state: DisplayState): Promise<DisplayState> {
+  async function setState(state: CurrentState): Promise<CurrentState> {
     const request = JSON.stringify({
       state,
     });
@@ -288,9 +288,9 @@ export const useDisplayStateStore = defineStore("displayState", () => {
   }
 
   /**
-   * Requests a refresh of the display state
+   * Requests a refresh of the state
    */
-  async function refresh(): Promise<DisplayState> {
+  async function refresh(): Promise<CurrentState> {
     const request = JSON.stringify({ get: true });
 
     const refreshPromise = _waitForMessage((message) => message.state);

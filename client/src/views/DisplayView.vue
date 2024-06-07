@@ -1,25 +1,27 @@
 <script lang="ts" setup>
-import { useDisplayStateStore } from "@/stores/displayState";
+import { useStateStore } from "@/stores/state";
 import { onMounted, ref } from "vue";
 
 const props = defineProps({
   displayName: { type: String, required: true },
 });
 
-const displayStateStore = useDisplayStateStore();
+const stateStore = useStateStore();
 
-async function connectDisplayState() {
-  await displayStateStore.connect();
+async function connectState() {
+  await stateStore.connect();
 }
-onMounted(connectDisplayState);
+onMounted(connectState);
 
 const newStateID = ref("");
 async function setState() {
-  await displayStateStore.authenticate();
-  displayStateStore.setState({
+  await stateStore.authenticate();
+  stateStore.setState({
     id: newStateID.value,
-    content: {},
-    slide_type_id: null,
+    display: {
+      content: {},
+      slide_type_id: null,
+    },
   });
 }
 </script>
@@ -35,7 +37,7 @@ async function setState() {
     </form>
     <br />
     <code>
-      <pre>{{ displayStateStore.currentState }}</pre>
+      <pre>{{ stateStore.currentState }}</pre>
     </code>
   </div>
 </template>

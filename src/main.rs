@@ -4,8 +4,8 @@ pub mod audit;
 pub mod auth;
 pub mod config;
 pub mod database;
-pub mod display_state;
 pub mod helpers;
+pub mod state;
 pub mod tasks;
 pub mod users;
 
@@ -24,9 +24,9 @@ pub async fn main() {
 
     let app = App::build(&config).await;
 
-    app.state.audit_service.log(None, "startup");
+    app.services.audit_service.log(None, "startup");
 
-    let maintenance_task = tokio::spawn(maintenance::maintenance_tasks(app.state.clone()));
+    let maintenance_task = tokio::spawn(maintenance::maintenance_tasks(app.services.clone()));
 
     axum::serve(app.listener, app.router)
         .with_graceful_shutdown(shutdown_signal(app.shutdown_token))
@@ -37,7 +37,7 @@ pub async fn main() {
         .await
         .expect("Error occurred in maintenance task");
 
-    app.state.audit_service.log(None, "shutdown");
+    app.services.audit_service.log(None, "shutdown");
 }
 
 async fn shutdown_signal(shutdown_token: CancellationToken) {

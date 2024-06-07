@@ -1,9 +1,9 @@
 use std::{sync::Arc, time::Duration};
 
-use crate::app::AppState;
+use crate::app::AppServices;
 
 /// Runs various maintenance tasks
-pub async fn maintenance_tasks(app_state: Arc<AppState>) {
+pub async fn maintenance_tasks(app_state: Arc<AppServices>) {
     tokio::join!(
         async {
             tokio::spawn(database_optimize_task(app_state.clone()))
@@ -24,7 +24,7 @@ pub async fn maintenance_tasks(app_state: Arc<AppState>) {
 }
 
 /// Runs quick database optimization
-pub async fn database_optimize_task(app_state: Arc<AppState>) {
+pub async fn database_optimize_task(app_state: Arc<AppServices>) {
     loop {
         tokio::select! {
             _ = tokio::time::sleep(Duration::from_secs(app_state.config.database_maintenance_interval)) => {},
@@ -36,7 +36,7 @@ pub async fn database_optimize_task(app_state: Arc<AppState>) {
 }
 
 /// Runs quick database checkpoints
-pub async fn database_quick_checkpoint_task(app_state: Arc<AppState>) {
+pub async fn database_quick_checkpoint_task(app_state: Arc<AppServices>) {
     loop {
         tokio::select! {
             _ = tokio::time::sleep(Duration::from_secs(app_state.config.database_quick_checkpoint_interval)) => {},
@@ -48,7 +48,7 @@ pub async fn database_quick_checkpoint_task(app_state: Arc<AppState>) {
 }
 
 /// Runs full database checkpoints
-pub async fn database_full_checkpoint_task(app_state: Arc<AppState>) {
+pub async fn database_full_checkpoint_task(app_state: Arc<AppServices>) {
     loop {
         tokio::select! {
             _ = tokio::time::sleep(Duration::from_secs(app_state.config.database_full_checkpoint_interval)) => {},

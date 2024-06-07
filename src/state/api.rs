@@ -13,38 +13,38 @@ use futures::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, watch};
 
-use crate::{app::AppState, auth::db::UserPermission};
+use crate::{app::AppServices, auth::db::UserPermission};
 
-use super::service::DisplayState;
+use super::models::CurrentState;
 
-pub fn route() -> Router<Arc<AppState>> {
+pub fn route() -> Router<Arc<AppServices>> {
     Router::new().route("/", get(handler))
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum DisplayStateRequest {
+pub enum StateRequest {
     Get { get: bool },
     Authenticate { auth_token: String },
-    Set { state: DisplayState },
+    Set { state: CurrentState },
     Ping { ping: String },
     Pong { pong: String },
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum DisplayStateResponse {
+pub enum StateResponse {
     AuthResult { auth: bool },
-    State { state: DisplayState },
+    State { state: CurrentState },
     Ping { ping: String },
     Pong { pong: String },
 }
 
-pub async fn handler(State(state): State<Arc<AppState>>, ws: WebSocketUpgrade) -> Response {
+pub async fn handler(State(state): State<Arc<AppServices>>, ws: WebSocketUpgrade) -> Response {
     ws.on_upgrade(|socket| websocket_handler(socket, state))
 }
 
-pub async fn websocket_handler(socket: WebSocket, state: Arc<AppState>) {
+pub async fn websocket_handler(socket: WebSocket, state: Arc<AppServices>) {
     let mut client_auth_token = None;
 
     let (mut ws_send, mut ws_recv) = socket.split();
@@ -64,11 +64,11 @@ pub async fn websocket_handler(socket: WebSocket, state: Arc<AppState>) {
 
     // handles incoming requests from the client
     let mut recv_task = tokio::spawn(async move {
-        let mut watch_recv = r_state.display_state_service.watch_recv.clone();
-        let watch_send = r_state.display_state_service.watch_send.clone();
+        let mut watch_recv = r_state.state_service.watch_recv.clone();
+        let watch_send = r_state.state_service.watch_send.clone();
 
         async fn send_response(
-            response: &DisplayStateResponse,
+            response: &StateResponse,
             queue_send: &mpsc::Sender<String>,
         ) -> Result<(), ()> {
             let response_json = serde_json::to_string(&response).unwrap();
@@ -79,22 +79,22 @@ pub async fn websocket_handler(socket: WebSocket, state: Arc<AppState>) {
         }
 
         async fn send_current_state(
-            watch_recv: &mut watch::Receiver<DisplayState>,
+            watch_recv: &mut watch::Receiver<CurrentState>,
             queue_send: &mpsc::Sender<String>,
         ) -> Result<(), ()> {
             let state = watch_recv.borrow_and_update().clone();
-            let response = DisplayStateResponse::State { state };
+            let response = StateResponse::State { state };
             send_response(&response, queue_send).await
         }
 
         while let Some(Ok(msg)) = ws_recv.next().await {
             match msg {
                 Message::Text(msg) => {
-                    let request: DisplayStateRequest =
-                        serde_json::from_str(&msg).expect("Failed to parse display state request");
+                    let request: StateRequest =
+                        serde_json::from_str(&msg).expect("Failed to parse state request");
 
                     match request {
-                        DisplayStateRequest::Get { get: _ } => {
+                        StateRequest::Get { get: _ } => {
                             // respond with current state
                             if send_current_state(&mut watch_recv, &r_queue_send)
                                 .await
@@ -104,7 +104,7 @@ pub async fn websocket_handler(socket: WebSocket, state: Arc<AppState>) {
                             }
                         }
 
-                        DisplayStateRequest::Authenticate { auth_token } => {
+                        StateRequest::Authenticate { auth_token } => {
                             // check permissions
                             let auth_result = r_state
                                 .auth_service
@@ -113,7 +113,7 @@ pub async fn websocket_handler(socket: WebSocket, state: Arc<AppState>) {
 
                             // respond with auth result
                             let send_result = send_response(
-                                &DisplayStateResponse::AuthResult { auth: auth_result },
+                                &StateResponse::AuthResult { auth: auth_result },
                                 &r_queue_send,
                             )
                             .await;
@@ -125,7 +125,7 @@ pub async fn websocket_handler(socket: WebSocket, state: Arc<AppState>) {
                             }
                         }
 
-                        DisplayStateRequest::Set { state } => {
+                        StateRequest::Set { state } => {
                             // check permissions
                             let can_set_state = if let Some(ref auth_token) = client_auth_token {
                                 r_state
@@ -144,7 +144,7 @@ pub async fn websocket_handler(socket: WebSocket, state: Arc<AppState>) {
                             } else {
                                 // respond with current state
                                 if send_response(
-                                    &DisplayStateResponse::AuthResult { auth: false },
+                                    &StateResponse::AuthResult { auth: false },
                                     &r_queue_send,
                                 )
                                 .await
@@ -155,18 +155,16 @@ pub async fn websocket_handler(socket: WebSocket, state: Arc<AppState>) {
                             }
                         }
 
-                        DisplayStateRequest::Ping { ping } => {
-                            let send_result = send_response(
-                                &DisplayStateResponse::Pong { pong: ping },
-                                &r_queue_send,
-                            )
-                            .await;
+                        StateRequest::Ping { ping } => {
+                            let send_result =
+                                send_response(&StateResponse::Pong { pong: ping }, &r_queue_send)
+                                    .await;
                             if send_result.is_err() {
                                 return;
                             }
                         }
 
-                        DisplayStateRequest::Pong { pong: _ } => {}
+                        StateRequest::Pong { pong: _ } => {}
                     }
                 }
                 Message::Close(_) => return,
@@ -177,10 +175,10 @@ pub async fn websocket_handler(socket: WebSocket, state: Arc<AppState>) {
 
     // watch for changed state
     let watch_task = tokio::spawn(async move {
-        let mut watch_recv = state.display_state_service.watch_recv.clone();
+        let mut watch_recv = state.state_service.watch_recv.clone();
         while let Ok(()) = watch_recv.changed().await {
             let state = watch_recv.borrow_and_update().clone();
-            let response = DisplayStateResponse::State { state };
+            let response = StateResponse::State { state };
             let response_json = serde_json::to_string(&response).unwrap();
             if queue_send.send(response_json).await.is_err() {
                 return;
