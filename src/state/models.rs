@@ -26,7 +26,6 @@ impl Default for CurrentState {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct DisplayState {
-    pub id: String,
     pub content: HashMap<String, String>,
     pub slide_type_id: Option<Uuid>,
 }
@@ -34,7 +33,6 @@ pub struct DisplayState {
 impl DisplayState {
     pub fn new() -> Self {
         Self {
-            id: String::default(),
             content: HashMap::new(),
             slide_type_id: None,
         }

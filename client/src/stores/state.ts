@@ -209,8 +209,6 @@ export const useStateStore = defineStore("state", () => {
     if (((authStore.user?.permissions ?? 0) & REQUIRED_SET_PERMISSIONS) != 0) {
       await authenticate();
 
-      console.debug(currentState.value, existingState);
-
       // set state if state on server side is not set
       if (currentState.value.id == "" && existingState.id != "") {
         await setState(existingState);
