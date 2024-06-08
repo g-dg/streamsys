@@ -1,6 +1,5 @@
 pub mod display_outputs;
 pub mod migrations;
-pub mod slide_content;
 pub mod slide_deck_sections;
 pub mod slide_deck_slides;
 pub mod slide_decks;
@@ -26,7 +25,7 @@ const DATABASE_DEFINITION_SQL: &str = include_str!("../../database.sql");
 const DATABASE_VERSION_MIN: u32 = 1;
 const DATABASE_VERSION_MAX: u32 = 999;
 
-const OPTIMIZE_INCREMENTAL_VACUUM_PAGES: u64 = 1;
+const OPTIMIZE_QUICK_INCREMENTAL_VACUUM_PAGES: u64 = 1;
 
 #[derive(Clone)]
 pub struct Database {
@@ -44,8 +43,7 @@ impl Database {
                 PRAGMA synchronous = NORMAL; \
                 PRAGMA foreign_keys = 1; \
                 PRAGMA auto_vacuum = INCREMENTAL; \
-                PRAGMA recursive_triggers = 1; \
-                PRAGMA wal_autocheckpoint = 0;",
+                PRAGMA recursive_triggers = 1;",
             )
         });
 
@@ -118,7 +116,7 @@ impl Database {
             .expect("Error occurred getting database connection for checkpoint");
 
         if full {
-            let mut stmt = conn.prepare("PRAGMA wal_checkpoint(RESTART);").unwrap();
+            let mut stmt = conn.prepare("PRAGMA wal_checkpoint(TRUNCATE);").unwrap();
             while stmt
                 .query_row([], |row| row.get::<_, i32>(0))
                 .expect("Error occurred while checkpointing database")
@@ -142,14 +140,14 @@ impl Database {
 
         if full {
             conn.execute_batch(
-                "PRAGMA optimize = 0x10002; \
+                "PRAGMA optimize(0x10002); \
                 PRAGMA incremental_vacuum;",
             )
             .ok();
         } else {
             conn.execute_batch(&format!(
-                "PRAGMA optimize = 0x10012; \
-                PRAGMA incremental_vacuum({OPTIMIZE_INCREMENTAL_VACUUM_PAGES});"
+                "PRAGMA optimize; \
+                PRAGMA incremental_vacuum({OPTIMIZE_QUICK_INCREMENTAL_VACUUM_PAGES});"
             ))
             .ok();
         }

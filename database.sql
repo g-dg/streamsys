@@ -44,7 +44,7 @@ CREATE TABLE "display_output_content" (
     "id" BLOB PRIMARY KEY NOT NULL DEFAULT (randomblob(16)),
     "display_output_id" BLOB NOT NULL REFERENCES "display_outputs" ("id") ON UPDATE CASCADE ON DELETE CASCADE,
     "key" TEXT NOT NULL,
-    "content" TEXT,
+    "value" TEXT,
     UNIQUE("display_output_id", "key") ON CONFLICT REPLACE
 );
 
@@ -57,7 +57,7 @@ CREATE TABLE "slide_type_content" (
     "id" BLOB PRIMARY KEY NOT NULL DEFAULT (randomblob(16)),
     "slide_type_id" BLOB NOT NULL REFERENCES "slide_types" ("id") ON UPDATE CASCADE ON DELETE CASCADE,
     "key" TEXT NOT NULL,
-    "content" TEXT,
+    "value" TEXT,
     UNIQUE("slide_type_id", "key") ON CONFLICT REPLACE
 );
 
@@ -73,7 +73,7 @@ CREATE TABLE "slide_group_content" (
     "id" BLOB PRIMARY KEY NOT NULL DEFAULT (randomblob(16)),
     "slide_group_id" BLOB NOT NULL REFERENCES "slide_groups" ("id") ON UPDATE CASCADE ON DELETE CASCADE,
     "key" TEXT NOT NULL,
-    "content" TEXT,
+    "value" TEXT,
     UNIQUE("slide_group_id", "key") ON CONFLICT REPLACE
 );
 
@@ -90,7 +90,7 @@ CREATE TABLE "slide_content" (
     "id" BLOB PRIMARY KEY NOT NULL DEFAULT (randomblob(16)),
     "slide_id" BLOB NOT NULL REFERENCES "slides" ("id") ON UPDATE CASCADE ON DELETE CASCADE,
     "key" TEXT NOT NULL,
-    "content" TEXT,
+    "value" TEXT,
     UNIQUE("slide_id", "key") ON CONFLICT REPLACE
 );
 
@@ -98,11 +98,11 @@ CREATE TABLE "slide_decks" (
     "id" BLOB PRIMARY KEY NOT NULL DEFAULT (randomblob(16)),
     "name" TEXT NOT NULL UNIQUE
 );
-CREATE TABLE "slide_deck_content_overrides" (
+CREATE TABLE "slide_deck_content" (
     "id" BLOB PRIMARY KEY NOT NULL DEFAULT (randomblob(16)),
     "slide_deck_id" BLOB NOT NULL REFERENCES "slide_decks" ("id") ON UPDATE CASCADE ON DELETE CASCADE,
     "key" TEXT NOT NULL,
-    "content" TEXT,
+    "value" TEXT,
     UNIQUE("slide_deck_id", "key") ON CONFLICT REPLACE
 );
 
@@ -116,11 +116,11 @@ CREATE TABLE "slide_deck_sections" (
 );
 CREATE INDEX "index__slide_deck_sections__slide_deck_id" ON "slide_deck_sections" ("slide_deck_id");
 
-CREATE TABLE "slide_deck_section_content_overrides" (
+CREATE TABLE "slide_deck_section_content" (
     "id" BLOB PRIMARY KEY NOT NULL DEFAULT (randomblob(16)),
     "slide_deck_section_id" BLOB NOT NULL REFERENCES "slide_deck_sections" ("id") ON UPDATE CASCADE ON DELETE CASCADE,
     "key" TEXT NOT NULL,
-    "content" TEXT,
+    "value" TEXT,
     UNIQUE("slide_deck_section_id", "key") ON CONFLICT REPLACE
 );
 
@@ -134,11 +134,11 @@ CREATE TABLE "slide_deck_slides" (
 );
 CREATE INDEX "index__slide_deck_slides__slide_deck_section_id" ON "slide_deck_slides" ("slide_deck_section_id");
 
-CREATE TABLE "slide_deck_slide_content_overrides" (
+CREATE TABLE "slide_deck_slide_content" (
     "id" BLOB PRIMARY KEY NOT NULL DEFAULT (randomblob(16)),
     "slide_deck_slide_id" BLOB NOT NULL REFERENCES "slide_deck_slides" ("id") ON UPDATE CASCADE ON DELETE CASCADE,
     "key" TEXT NOT NULL,
-    "content" TEXT,
+    "value" TEXT,
     UNIQUE("slide_deck_slide_id", "key") ON CONFLICT REPLACE
 );
 
